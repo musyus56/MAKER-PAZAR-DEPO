@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Makerpazar Depo Sistemi</title>
+  <style>
+    :root {
+      --ana-mor: #6c3ccf;
+      --acik-mor: #f4eeff;
+      --beyaz: #fff;
+      --gri: #ddd;
+    }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      background: #fff;
+      color: #222;
+    }
+
+    header {
+      background-color: var(--acik-mor);
+      display: flex;
+      align-items: center;
+      padding: 15px 20px;
+      border-bottom: 2px solid var(--ana-mor);
+    }
+
+    header img {
+      height: 40px;
+      margin-right: 10px;
+    }
+
+    header h1 {
+      font-size: 1.6rem;
+      color: var(--ana-mor);
+      margin: 0;
+    }
+
+    main {
+      padding: 30px 5vw;
+    }
+
+    h2 {
+      font-size: 1.3rem;
+      color: var(--ana-mor);
+      margin-bottom: 20px;
+    }
+
+    .form-group, .search-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .form-group input,
+    .search-group input,
+    .form-group button {
+      padding: 12px;
+      font-size: 1rem;
+      border: 1px solid var(--gri);
+      border-radius: 6px;
+    }
+
+    .form-group input,
+    .search-group input {
+      flex: 1;
+      min-width: 150px;
+    }
+
+    .form-group button {
+      background-color: var(--ana-mor);
+      color: white;
+      cursor: pointer;
+      border: none;
+      transition: background 0.3s;
+    }
+
+    .form-group button:hover {
+      background-color: #542bac;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 12px;
+      border-bottom: 1px solid #eee;
+    }
+
+    th {
+      background-color: var(--acik-mor);
+      color: var(--ana-mor);
+      text-align: left;
+    }
+
+    @media (max-width: 600px) {
+      .form-group, .search-group {
+        flex-direction: column;
+      }
+
+      th, td {
+        font-size: 0.9rem;
+      }
+    }
+  </style>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+</head>
+<body>
+
+  <header>
+    <img src="makerpazarr2_c2f781a6-5110-4451-8bf7-f624ff072153.png" alt="Logo" />
+    <h1>Makerpazar Depo Sistemi</h1>
+  </header>
+
+  <main>
+    <h2>📦 Raf Takip</h2>
+
+    <div class="form-group">
+      <input type="text" id="urun" placeholder="Ürün Adı" />
+      <input type="text" id="raf" placeholder="Raf No (örn: A1)" maxlength="3" />
+      <button onclick="urunEkle()">Ekle</button>
+    </div>
+
+    <div class="search-group">
+      <input type="text" id="arama" placeholder="Ürün ara..." oninput="urunAra()" />
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Ürün</th>
+          <th>Raf No</th>
+          <th>Sil</th>
+        </tr>
+      </thead>
+      <tbody id="urunListesi"></tbody>
+    </table>
+  </main>
+
+  <script>
+   const firebaseConfig = {
+  apiKey: "AIzaSyBLewukvlEuriIHpeiMcGnR8B0Tcf-t1vs",
+  authDomain: "makerpazardepo.firebaseapp.com",
+  databaseURL: "https://makerpazardepo-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "makerpazardepo",
+  storageBucket: "makerpazardepo.firebasestorage.app",
+  messagingSenderId: "775580386885",
+  appId: "1:775580386885:web:f53b4dae320ebe1e3f852c"
+};
+
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    function urunEkle() {
+      const urun = document.getElementById("urun").value.trim();
+      const raf = document.getElementById("raf").value.trim().toUpperCase();
+
+      if (urun && /^[A-Z]\d{1,2}$/.test(raf)) {
+        const yeniUrun = { urun, raf };
+        const key = db.ref("urunler").push().key;
+        db.ref("urunler/" + key).set(yeniUrun);
+        document.getElementById("urun").value = "";
+        document.getElementById("raf").value = "";
+      } else {
+        alert("Lütfen geçerli ürün adı ve raf no (örn: A1) girin.");
+      }
+    }
+
+    function listele(snapshot) {
+      const liste = document.getElementById("urunListesi");
+      liste.innerHTML = "";
+      snapshot.forEach(child => {
+        const key = child.key;
+        const { urun, raf } = child.val();
+        liste.innerHTML += `
+          <tr>
+            <td>${urun}</td>
+            <td>${raf}</td>
+            <td><button onclick="sil('${key}')">❌</button></td>
+          </tr>`;
+      });
+    }
+
+    function sil(key) {
+      if (confirm("Silmek istiyor musunuz?")) {
+        db.ref("urunler/" + key).remove();
+      }
+    }
+
+    function urunAra() {
+      const arama = document.getElementById("arama").value.toLowerCase();
+      db.ref("urunler").once("value", snapshot => {
+        const filtreli = [];
+        snapshot.forEach(child => {
+          if (child.val().urun.toLowerCase().includes(arama)) {
+            filtreli.push(child);
+          }
+        });
+        listele(filtreli);
+      });
+    }
+
+    db.ref("urunler").on("value", snapshot => {
+      listele(snapshot);
+    });
+  </script>
+
+</body>
+</html>
